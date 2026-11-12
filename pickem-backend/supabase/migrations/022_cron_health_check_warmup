@@ -1,0 +1,14 @@
+-- health-check doesn't strictly need its own cron entry — the external
+-- uptime monitor calls it directly on its own schedule. This exists mainly
+-- so the function is deployed and warm rather than cold-starting on the
+-- monitor's very first check.
+select cron.schedule(
+  'health-check-warmup-every-5min',
+  '*/5 * * * *',
+  $$
+  select net.http_get(
+    url := 'https://hoptqfccpxdcqhifwkjk.supabase.co/functions/v1/health-check',
+    timeout_milliseconds := 10000
+  );
+  $$
+);

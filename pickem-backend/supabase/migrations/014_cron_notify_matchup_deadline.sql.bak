@@ -1,0 +1,12 @@
+-- Every 15 minutes gives plenty of resolution for a 2-hour-lead reminder.
+select cron.schedule(
+  'notify-matchup-deadline-every-15min',
+  '*/15 * * * *',
+  $$
+  select net.http_post(
+    url := 'https://<YOUR-PROJECT-REF>.supabase.co/functions/v1/notify-matchup-deadline',
+    headers := jsonb_build_object('Authorization', 'Bearer <YOUR-CRON-SECRET>'),
+    timeout_milliseconds := 15000
+  );
+  $$
+);

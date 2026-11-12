@@ -1,0 +1,12 @@
+-- Every 10 minutes gives plenty of resolution for a 30-minute-lead reminder.
+select cron.schedule(
+  'notify-upcoming-locks-every-10min',
+  '*/10 * * * *',
+  $$
+  select net.http_post(
+    url := 'https://<YOUR-PROJECT-REF>.supabase.co/functions/v1/notify-upcoming-locks',
+    headers := jsonb_build_object('Authorization', 'Bearer <YOUR-CRON-SECRET>'),
+    timeout_milliseconds := 20000
+  );
+  $$
+);

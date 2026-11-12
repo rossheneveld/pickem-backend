@@ -1,0 +1,40 @@
+-- Requires the pg_cron and pg_net extensions.
+-- Enable via Supabase Dashboard: Database > Extensions > search "pg_cron" and "pg_net" > Enable.
+--
+-- Replace <YOUR-PROJECT-REF> and <YOUR-CRON-SECRET> below before running.
+-- CRON_SECRET should match the secret you set with `supabase secrets set CRON_SECRET=...`
+-- — this stops random internet traffic from triggering your sync functions
+-- (and burning your API quota) by hitting the function URL directly.
+
+-- Schedule + odds: every 3 hours. At ~2 sports x 8 runs/day = 16 calls/day,
+-- this stays far inside The Odds API's free tier no matter how many leagues
+-- or users are on the app, since every league reads the same cached rows.
+select cron.schedule(
+  'sync-schedule-odds-every-3h',
+  '0 */3 * * *',
+  $$
+  select net.http_post(
+    url := 'https://<YOUR-PROJECT-REF>.supabase.co/functions/v1/sync-schedule-odds',
+    headers := jsonb_build_object('Authorization', 'Bearer <YOUR-CRON-SECRET>'),
+    timeout_milliseconds := 30000
+  );
+  $$
+);
+
+-- Live scores: every 5 minutes, but only on typical game days (Thu/Sat/Sun/Mon
+-- covers NFL Thu/Sun/Mon and NCAA's heavy Saturday slate). Running this only
+-- on game days — not 24/7 — is what keeps this from becoming the expensive one.
+select cron.schedule(
+  'sync-live-scores-gameday-every-5min',
+  '*/5 * * * 0,1,4,6',
+  $$
+  select net.http_post(
+    url := 'https://<YOUR-PROJECT-REF>.supabase.co/functions/v1/sync-live-scores',
+    headers := jsonb_build_object('Authorization', 'Bearer <YOUR-CRON-SECRET>'),
+    timeout_milliseconds := 30000
+  );
+  $$
+);
+
+-- To see scheduled jobs: select * from cron.job;
+-- To remove one:         select cron.unschedule('sync-schedule-odds-every-3h');
